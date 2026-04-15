@@ -1,7 +1,10 @@
-.>*
-*>O
+var>varA
+varA>varBA
+varB>varCB
+varC>varDC
 
-. * O
-x x .
-O * .
+A<E(A)
+B<E
+C<E
+D<E
 

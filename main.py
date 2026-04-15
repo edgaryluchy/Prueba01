@@ -164,10 +164,68 @@ def ejecutar_instruccion(linea):
 # -----------------------------
 
 def aplicar_reglas(texto, reglas):
+	def match_flattened(start, L):
+		pos = start
+		matched = 0
+		stack = []
+		while pos < len(texto) and matched < len(L):
+			if texto[pos] == "(":
+				stack.append("(")
+				pos += 1
+				continue
+			if texto[pos] == ")":
+				if stack:
+					stack.pop()
+				pos += 1
+				continue
+			if texto[pos] != L[matched]:
+				return None
+			matched += 1
+			pos += 1
+		if matched != len(L):
+			return None
+		while pos < len(texto) and stack:
+			if texto[pos] == "(":
+				stack.append("(")
+			elif texto[pos] == ")":
+				stack.pop()
+			pos += 1
+		return pos if not stack else None
+
 	resultado = ""
 	i = 0
 	while i < len(texto):
 		aplicado = False
+
+		# Reemplazo especial para paréntesis completo con coincidencia exacta del contenido.
+		if texto[i] == "(":
+			profundidad = 1
+			j = i + 1
+			while j < len(texto) and profundidad > 0:
+				if texto[j] == "(":
+					profundidad += 1
+				elif texto[j] == ")":
+					profundidad -= 1
+				j += 1
+
+			if profundidad == 0:
+				contenido = texto[i+1:j-1]
+				for regla in reglas:
+					if ">" in regla:
+						partes = regla.split(">", 1)
+						L = partes[0]
+						R = partes[1]
+						if L == contenido:
+							resultado += R
+							i = j
+							aplicado = True
+							break
+				if aplicado:
+					continue
+				resultado += texto[i:j]
+				i = j
+				continue
+
 		for regla in reglas:
 			if ">" in regla:
 				partes = regla.split(">", 1)
@@ -179,7 +237,13 @@ def aplicar_reglas(texto, reglas):
 					resultado += R
 					i += len(L)
 					aplicado = True
-					break  # Aplicar solo la primera regla que coincida en esta posición
+					break
+				end = match_flattened(i, L)
+				if end is not None:
+					resultado += R
+					i = end
+					aplicado = True
+					break
 		if not aplicado:
 			resultado += texto[i]
 			i += 1
@@ -205,7 +269,13 @@ def recolectar_reglas(historial):
 	reglas = []
 	for linea in historial:
 		if ">" in linea:
-			reglas.append(linea)
+			# Si la regla está delimitada por paréntesis (A>B), extraer el contenido
+			if linea.startswith("(") and linea.endswith(")"):
+				contenido = linea[1:-1]
+				if ">" in contenido:
+					reglas.append(contenido)
+			else:
+				reglas.append(linea)
 	return reglas
 
 
@@ -221,10 +291,7 @@ def ejecutar_sistema(veces, veces_por_segundo=0):
 		nuevo_historial = []
 
 		for i in range(len(historial)):
-			if ">" not in historial[i]:
-				resultado = aplicar_reglas(historial[i], reglas)
-			else:
-				resultado = historial[i]
+			resultado = aplicar_reglas(historial[i], reglas)
 			nuevo_historial.append(resultado)
 			print(f"{i} => {resultado}")
 
